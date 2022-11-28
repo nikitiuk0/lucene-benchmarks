@@ -31,12 +31,6 @@ class Indexer {
         this.analyzer = analyzer;
     }
 
-//    void createIndex() {
-//        prepareIndex();
-//        writeIndex(NUM_SOURCE_DOCS, 0);
-//        close();
-//    }
-
     void prepareIndex() {
         try {
             IndexWriterConfig config = new IndexWriterConfig(analyzer);
