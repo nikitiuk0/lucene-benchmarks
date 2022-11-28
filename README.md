@@ -40,8 +40,5 @@ cd lucene-benchmarks
 |Evaluator|Executes a search, can inspect the results for testing.|
 |Main|Entry of program, runs performance tests.|
 
-
-
-
-
-
+## Acknowledgements
+This project is partially based on https://github.com/PointerFLY/Lucene-Example.git
