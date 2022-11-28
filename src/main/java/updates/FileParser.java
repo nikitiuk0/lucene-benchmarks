@@ -57,38 +57,4 @@ class FileParser {
 
         return queries;
     }
-
-    static Baselines readBaselines() {
-        Baselines baselines = new Baselines();
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(FileUtils.BASELINE_FILE.toFile()));
-            String line = null;
-            int oldQueryId = 1;
-            HashSet<Integer> set = new HashSet<>();
-            while ((line = reader.readLine()) != null) {
-                String[] items = line.split("\\s+");
-                int queryId = Integer.parseInt(items[0]);
-                int documentId = Integer.parseInt(items[1]);
-                int relevance = Integer.parseInt(items[2]);
-
-                // New queryId starts or not
-                if (queryId != oldQueryId) {
-                    oldQueryId = queryId;
-                    baselines.add(set);
-                    set = new HashSet<>();
-                }
-                if (relevance <= 3) {
-                   set.add(documentId);
-                }
-            }
-            // last queryId
-            baselines.add(set);
-        } catch (IOException e) {
-            e.printStackTrace();
-            Logger.getGlobal().log(Level.SEVERE, "Read baseline file failed");
-            System.exit(1);
-        }
-
-        return baselines;
-    }
 }
