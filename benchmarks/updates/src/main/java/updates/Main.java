@@ -1,5 +1,7 @@
 package updates;
 
+import common.DataUtils;
+import common.Indexer;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.openjdk.jmh.annotations.*;
@@ -18,7 +20,11 @@ public class Main {
     @Warmup(iterations = 1)
     @Measurement(iterations = 3)
     public void runBenchmark(BenchmarkState state) {
-        state.indexer.updateIndex(10000, (int)(Math.random()*100), state.useReplace);
+        try {
+            state.indexer.updateIndex(1000, (int)(Math.random()*100), state.useReplace);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @State(Scope.Benchmark)
@@ -30,39 +36,57 @@ public class Main {
         private Thread refreshThread;
         private Evaluator evaluator;
 
+        private Searcher searcher;
+
         @Setup
         public void setup() {
-            FileUtils.initialize();
+            System.out.println("-----Benchmark setup start");
+            try {
+                DataUtils.initialize();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             Analyzer analyzer = new StandardAnalyzer();
             indexer = new Indexer();
             indexer.setAnalyzer(analyzer);
-            indexer.prepareIndex();
-            indexer.writeIndex(10000, -1);
+            try {
+                indexer.prepareIndex();
+                indexer.writeIndex(10000, -1);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
-            Searcher searcher = new Searcher();
+            searcher = new Searcher();
             searcher.setAnalyzer(analyzer);
-            searcher.initReader(indexer.writer);
+            searcher.initReader(indexer.getIndexWriter());
 
             evaluator = new Evaluator(searcher);
 
-            refreshThread = searcher.startRefreshThread(() -> evaluator.runRandomQuery(), 1000);
+            refreshThread = searcher.startRefreshCommitThread(() -> evaluator.runRandomQuery(), 1000);
+            System.out.println("-----Benchmark setup end");
         }
 
         @TearDown
         public void tearDown() throws InterruptedException {
-            refreshThread.interrupt();
+            System.out.println("-----Benchmark tearDown start");
+            searcher.stopThread();
             try {
                 refreshThread.join();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
 
-            indexer.close();
+            try {
+                indexer.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
-            Thread.sleep(100);
+            Thread.sleep(1000);
 
-            System.out.println("Num hits total " + evaluator.numHits);
+            System.out.println("----------Num hits total " + evaluator.numHits);
+            System.out.println("-----Benchmark tearDown end");
         }
 
     }

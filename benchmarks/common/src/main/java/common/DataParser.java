@@ -1,26 +1,23 @@
-package updates;
+package common;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-class FileParser {
+public class DataParser {
 
     @FunctionalInterface
-    interface DocumentProcessor {
+    public interface DocumentProcessor {
         void process(DocumentModel model);
     }
 
-    static void readDocument(int numDocs, DocumentProcessor processor) {
+    public static void readDocument(int numDocs, DocumentProcessor processor) {
         try {
-            String text = String.join(" ", Files.readAllLines(FileUtils.DOCS_FILE));
+            String text = String.join(" ", Files.readAllLines(DataUtils.DOCS_FILE));
             String lines[] = text.split("\\.I\\s*");
             ArrayList<String> docs = new ArrayList<>(Arrays.asList(lines));
             docs.remove(0);
@@ -40,10 +37,10 @@ class FileParser {
         }
     }
 
-    static ArrayList<String> readQueries() {
+    public static ArrayList<String> readQueries() {
         ArrayList<String> queries = new ArrayList<>();
         try {
-            String text = String.join(" ", Files.readAllLines(FileUtils.QUERY_FILE));
+            String text = String.join(" ", Files.readAllLines(DataUtils.QUERY_FILE));
             text = text.replace("?", "");
             String lines[] = text.split("\\.I.*?.W");
             Collections.addAll(queries, lines);

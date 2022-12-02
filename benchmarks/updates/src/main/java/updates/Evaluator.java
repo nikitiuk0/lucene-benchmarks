@@ -1,13 +1,14 @@
 package updates;
 
 import com.sun.tools.javac.util.Pair;
+import common.DataParser;
 
 import java.util.ArrayList;
 
 class Evaluator {
 
     private final Searcher searcher;
-    private final ArrayList<String> queries = FileParser.readQueries();
+    private final ArrayList<String> queries = DataParser.readQueries();
 
     static final int MAX_HITS = 50;
     long numHits = 0;

@@ -1,6 +1,7 @@
 package updates;
 
 import com.sun.tools.javac.util.Pair;
+import common.DocumentModel;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.*;
@@ -19,6 +20,9 @@ class Searcher {
     private Analyzer analyzer = new StandardAnalyzer();
 
     private SearcherManager searcherManager;
+    private IndexWriter writer;
+
+    private volatile boolean stopped = false;
 
 
     void setAnalyzer(Analyzer analyzer) {
@@ -26,6 +30,7 @@ class Searcher {
     }
 
     void initReader(IndexWriter writer) {
+        this.writer = writer;
         try {
             searcherManager = new SearcherManager(writer, null);
 
@@ -36,24 +41,34 @@ class Searcher {
         }
     }
 
-    Thread startRefreshThread(Runnable postRefresh, int sleepTime) {
+    Thread startRefreshCommitThread(Runnable postRefresh, int sleepTime) {
         Thread t = new Thread() {
             public void run() {
-                while (true) {
+                int iteration = 0;
+                while (!stopped) {
                     try {
                         searcherManager.maybeRefresh();
                         postRefresh.run();
+                        if (iteration % 10 == 9) {
+                            writer.commit();
+                            iteration = 0;
+                        }
                         Thread.sleep(sleepTime);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     } catch (InterruptedException e) {
                         return;
                     }
+                    ++iteration;
                 }
             }
         };
         t.start();
         return t;
+    }
+
+    void stopThread() {
+        stopped = true;
     }
 
     ArrayList<Pair<Integer, Long>> search(String queryStr, int maxHits) {

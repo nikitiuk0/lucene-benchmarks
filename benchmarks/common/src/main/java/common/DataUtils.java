@@ -1,5 +1,6 @@
-package updates;
+package common;
 
+import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
 import org.codehaus.plexus.logging.console.ConsoleLoggerManager;
 
@@ -11,15 +12,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.*;
 
-class FileUtils {
-
+public class DataUtils {
     private static final Path TEMP_DIR = Paths.get("temp/");
     private static final Path DOCS_DIR = TEMP_DIR.resolve("docs/");
-    static final Path INDEX_DIR = TEMP_DIR.resolve("index/");
 
-    static final Path DOCS_FILE = DOCS_DIR.resolve("cran.all.1400");
-    static final Path QUERY_FILE = DOCS_DIR.resolve("cran.qry");
-    static final Path BASELINE_FILE = DOCS_DIR.resolve("cranqrel");
+    public static final Path INDEX_DIR = TEMP_DIR.resolve("index/");
+
+    public static final Path DOCS_FILE = DOCS_DIR.resolve("cran.all.1400");
+    public static final Path QUERY_FILE = DOCS_DIR.resolve("cran.qry");
 
     private static final URL DOCS_URL;
 
@@ -31,9 +31,9 @@ class FileUtils {
         }
     }
 
-    static void initialize() {
-        createDirectory(INDEX_DIR);
-        createDirectory(DOCS_DIR);
+    public static void initialize() throws IOException {
+        createDirectory(INDEX_DIR, true);
+        createDirectory(DOCS_DIR, false);
         Path gzipFile = fetchDocs(DOCS_URL, TEMP_DIR);
         decompress(gzipFile, DOCS_DIR);
     }
@@ -48,14 +48,11 @@ class FileUtils {
         unarchiver.extract();
     }
 
-    private static void createDirectory(Path path) {
+    private static void createDirectory(Path path, boolean deleteIfExists) throws IOException {
         if (Files.notExists(path)) {
-            try {
-                Files.createDirectories(path);
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
+            Files.createDirectories(path);
+        } else if (deleteIfExists) {
+            FileUtils.deleteDirectory(path.toFile());
         }
     }
 

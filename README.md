@@ -9,15 +9,14 @@ So far, there is only one test that compares performance of document updates (th
 
 Note: This test first ingests 10k documents from CRAN.REL dataset and then runs multiple iterations of 10k updates
 
-
 |Benchmark        |(useReplace)|Mode |Cnt|Score  |Error   |Units|
 |:--              |:--         |:--  |:--|:--    |:--     |:--  |
-|Main.runBenchmark|true        |thrpt|6  |3.711  |±  0.206|ops/s|
-|Main.runBenchmark|false       |thrpt|6  |199.992|± 75.159|ops/s|
+|Main.runBenchmark|true        |thrpt|6  | 39.214|±   1.186|ops/s|
+|Main.runBenchmark|false       |thrpt|6  |1775.49|± 123.876|ops/s|
 
 **Conclusion:**
 
-* Updating doc values is ~55x times faster than updating entire documents.
+* Updating doc values is ~45x times faster than updating entire documents.
 
 ## How to run
 

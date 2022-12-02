@@ -1,0 +1,11 @@
+dependencies {
+    implementation project(':benchmarks:common')
+}
+
+apply plugin: 'application'
+
+sourceCompatibility = 1.8
+
+application {
+    mainClassName = 'updates.Main'
+}
