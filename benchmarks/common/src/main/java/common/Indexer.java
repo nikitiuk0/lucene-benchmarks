@@ -11,8 +11,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Indexer {
 
@@ -45,7 +43,7 @@ public class Indexer {
         prepareDocuments(NUM_SOURCE_DOCS);
     }
 
-    public void writeIndex(int numDocsToIngest, int generation) throws IOException {
+    public void writeIndex(int numDocsToIngest, int generation, boolean useDocValues) throws IOException {
         for (int i = 0; i < numDocsToIngest; ++i) {
             int round = i / NUM_SOURCE_DOCS;
             int offset = i % NUM_SOURCE_DOCS;
@@ -57,7 +55,11 @@ public class Indexer {
 
             luceneDoc.add(id);
             luceneDoc.add(content);
-            luceneDoc.add(new NumericDocValuesField(DocumentModel.RATING, generation ));
+            if (useDocValues) {
+                luceneDoc.add(new NumericDocValuesField(DocumentModel.RATING, generation));
+            } else {
+                luceneDoc.add(new StoredField(DocumentModel.RATING, generation));
+            }
 
             writer.addDocument(luceneDoc);
         }
@@ -69,7 +71,9 @@ public class Indexer {
      * @param generation used to write docvalue rating field value
      * @param replace to replace entire document (delete+insert), or update doc value only otherwise
      */
-    public void updateIndex(int numDocsToUpdate, int generation, boolean replace) throws IOException {
+    public void updateIndex(int numDocsToUpdate, int generation, boolean replace, boolean useDocValues) throws IOException {
+        if (!replace) assert useDocValues;
+
         for (int i = 0; i < numDocsToUpdate; ++i) {
             int round = i / NUM_SOURCE_DOCS;
             int offset = i % NUM_SOURCE_DOCS;
@@ -83,12 +87,20 @@ public class Indexer {
                 Document luceneDoc = new Document();
                 luceneDoc.add(id);
                 luceneDoc.add(content);
-                luceneDoc.add(new NumericDocValuesField(DocumentModel.RATING, generation ));
+                if (useDocValues) {
+                    luceneDoc.add(new NumericDocValuesField(DocumentModel.RATING, generation));
+                } else {
+                    luceneDoc.add(new StoredField(DocumentModel.RATING, generation));
+                }
                 writer.updateDocument(new Term(DocumentModel.ID, docIdStr), luceneDoc);
             } else {
                 writer.updateNumericDocValue(new Term(DocumentModel.ID, docIdStr), DocumentModel.RATING, generation);
             }
         }
+    }
+
+    public void commit() throws IOException {
+        writer.commit();
     }
 
     public void close() throws IOException {

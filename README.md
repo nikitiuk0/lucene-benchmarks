@@ -7,7 +7,7 @@ So far, there is only one test that compares performance of document updates (th
 ## Performance results
 ### Updating document vs updating doc value only
 
-Note: This test first ingests 10k documents from CRAN.REL dataset and then runs multiple iterations of 10k updates
+This test first ingests 10k documents from CRAN.REL dataset and then runs multiple iterations of 10k updates
 
 |Benchmark        |(useReplace)|Mode |Cnt|Score  |Error   |Units|
 |:--              |:--         |:--  |:--|:--    |:--     |:--  |
@@ -17,6 +17,21 @@ Note: This test first ingests 10k documents from CRAN.REL dataset and then runs 
 **Conclusion:**
 
 * Updating doc values is ~45x times faster than updating entire documents.
+
+### Fetching stored numeric field vs numeric doc value
+
+This test first ingests 10k documents from CRAN.REL dataset and then runs multiple searches (with having updates and
+refreshes performed in background)
+
+|Benchmark        |(useDocValues)|Mode |Cnt|Score  |Error   |Units|
+|:--              |:--           |:--  |:--|:--    |:--     |:--  |
+|Main.runBenchmark|true          |thrpt|6  |3930.220|± 380.659|ops/s|
+|Main.runBenchmark|false         |thrpt|6  |4899.003|± 502.397|ops/s|
+
+**Conclusion:**
+
+* A search with fetching a single number from a doc value is ~20% slower than a search with fetching that number from a stored field
+* Fetching doc values vs fetching stored fields have a limited impact on search performance, as the majority of time is spent in query phase compared to fetch phase. 
 
 ## How to run
 

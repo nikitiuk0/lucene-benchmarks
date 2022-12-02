@@ -1,6 +1,5 @@
 rootProject.name = 'lucene-benchmarks'
 
 include ':benchmarks:common'
+include ':benchmarks:fieldaccess'
 include ':benchmarks:updates'
-
-//project(":src:common").projectDir = file("common")

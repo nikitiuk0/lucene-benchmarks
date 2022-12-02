@@ -1,10 +1,11 @@
-package updates;
+package fieldaccess;
 
+import com.google.common.collect.ImmutableSet;
 import com.sun.tools.javac.util.Pair;
 import common.DocumentModel;
-import common.Indexer;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -13,66 +14,26 @@ import org.apache.lucene.search.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 class Searcher {
 
     private Analyzer analyzer = new StandardAnalyzer();
 
     private SearcherManager searcherManager;
-    private Indexer indexer;
 
-    private volatile boolean stopped = false;
-
+    Searcher(SearcherManager searcherManager) {
+        this.searcherManager = searcherManager;
+    }
 
     void setAnalyzer(Analyzer analyzer) {
         this.analyzer = analyzer;
     }
 
-    void initReader(Indexer indexer) {
-        this.indexer = indexer;
-        try {
-            searcherManager = new SearcherManager(indexer.getIndexWriter(), null);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            Logger.getGlobal().log(Level.SEVERE, "Read index failed");
-            System.exit(1);
-        }
-    }
-
-    Thread startRefreshCommitThread(Runnable postRefresh, int sleepTime) {
-        Thread t = new Thread() {
-            public void run() {
-                int iteration = 0;
-                while (!stopped) {
-                    try {
-                        searcherManager.maybeRefresh();
-                        postRefresh.run();
-                        if (iteration % 10 == 9) {
-                            indexer.commit();
-                            iteration = 0;
-                        }
-                        Thread.sleep(sleepTime);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
-                        return;
-                    }
-                    ++iteration;
-                }
-            }
-        };
-        t.start();
-        return t;
-    }
-
-    void stopThread() {
-        stopped = true;
-    }
-
-    ArrayList<Pair<Integer, Long>> search(String queryStr, int maxHits) {
+    List<Pair<Integer, Long>> search(String queryStr, int maxHits, boolean useDocValues) {
         String fields[] = new String[] { DocumentModel.CONTENT };
         QueryParser parser = new MultiFieldQueryParser(fields, analyzer);
 
@@ -92,9 +53,11 @@ class Searcher {
                         @Override
                         public void collect(int doc) throws IOException {
                             long rating = -1;
-                            NumericDocValues ndv = context.reader().getNumericDocValues(DocumentModel.RATING);
-                            if (ndv.advanceExact(doc)) {
-                                rating = ndv.longValue();
+                            if (useDocValues) {
+                                NumericDocValues ndv = context.reader().getNumericDocValues(DocumentModel.RATING);
+                                if (ndv.advanceExact(doc)) {
+                                    rating = ndv.longValue();
+                                }
                             }
                             hits.add(new Pair<>(doc, rating));
                         }
@@ -107,7 +70,20 @@ class Searcher {
                 }
             });
             hits.subList(maxHits, hits.size()).clear();
-            return hits;
+            if (useDocValues) {
+                return hits;
+            }
+
+            IndexSearcher finalSearcher = searcher;
+            return hits.stream().map(p -> {
+                Document doc;
+                try {
+                    doc = finalSearcher.doc(p.fst, ImmutableSet.of(DocumentModel.RATING));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                return new Pair<>(p.fst, doc.getField(DocumentModel.RATING).numericValue().longValue());
+            }).collect(Collectors.toList());
         } catch (ParseException e) {
             e.printStackTrace();
             Logger.getGlobal().log(Level.SEVERE, "Can't parse query");

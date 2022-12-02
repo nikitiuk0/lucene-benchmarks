@@ -1,9 +1,10 @@
-package updates;
+package fieldaccess;
 
 import common.DataUtils;
 import common.Indexer;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.search.SearcherManager;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
@@ -20,22 +21,16 @@ public class Main {
     @Warmup(iterations = 1)
     @Measurement(iterations = 3)
     public void runBenchmark(BenchmarkState state) {
-        try {
-            state.indexer.updateIndex(1000, (int)(Math.random()*100), state.useReplace, true);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        state.evaluator.runRandomQuery(state.useDocValues);
     }
 
     @State(Scope.Benchmark)
     public static class BenchmarkState {
         @Param({"true", "false"})
-        public boolean useReplace;
-
+        public boolean useDocValues; // uses stored field if false
         public Indexer indexer;
-        private Thread refreshThread;
+        private BackgroundIndexer backgroundIndexer;
         private Evaluator evaluator;
-
         private Searcher searcher;
 
         @Setup
@@ -52,27 +47,33 @@ public class Main {
             indexer.setAnalyzer(analyzer);
             try {
                 indexer.prepareIndex();
-                indexer.writeIndex(Indexer.NUM_SOURCE_DOCS * 10, -1, true);
+                indexer.writeIndex(Indexer.NUM_SOURCE_DOCS * 10, -1, useDocValues);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
 
-            searcher = new Searcher();
+            SearcherManager searcherManager;
+            try {
+                searcherManager = new SearcherManager(indexer.getIndexWriter(), null);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            searcher = new Searcher(searcherManager);
             searcher.setAnalyzer(analyzer);
-            searcher.initReader(indexer);
 
             evaluator = new Evaluator(searcher);
 
-            refreshThread = searcher.startRefreshCommitThread(() -> evaluator.runRandomQuery(), 1000);
+            backgroundIndexer = new BackgroundIndexer(indexer, searcherManager);
+            backgroundIndexer.startIndexerThread(1000, useDocValues);
             System.out.println("-----Benchmark setup end");
         }
 
         @TearDown
         public void tearDown() throws InterruptedException {
             System.out.println("-----Benchmark tearDown start");
-            searcher.stopThread();
+            backgroundIndexer.stopThread();
             try {
-                refreshThread.join();
+                if (backgroundIndexer != null) backgroundIndexer.join();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -94,10 +95,11 @@ public class Main {
     private static void runManualTests() throws InterruptedException {
         Main main = new Main();
         BenchmarkState bs = new BenchmarkState();
-        bs.useReplace = true;
+        bs.useDocValues = false;
         bs.setup();
         for (int i = 0; i < 10; ++i) {
             main.runBenchmark(bs);
+            Thread.sleep(1000);
         }
         bs.tearDown();
     }
